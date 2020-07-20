@@ -100,4 +100,7 @@ class GenerateCronTriggers implements Processor {
     
     @Override
     String getIdentifier() { return null }
-} processor = new GenerateCronTriggers()
+    
+}
+
+processor = new GenerateCronTriggers()
