@@ -39,7 +39,8 @@ class GenerateCronTriggers implements Processor {
         log = context.getLogger()
     }
     
-    @Override    Set<Relationship> getRelationships() {
+    @Override    
+    Set<Relationship> getRelationships() {
         return [REL_ORIGINAL,REL_TRIGGER,REL_FAILURE] as Set
     }
     
