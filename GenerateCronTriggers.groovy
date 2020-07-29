@@ -61,6 +61,7 @@ class GenerateCronTriggers implements Processor {
             def cronExpressionEvaluated = context.getProperty(CRONEXPRESSION).evaluateAttributeExpressions(flowFile).getValue()
             final CronExpression cronExpression;
             cronExpression = new CronExpression(cronExpressionEvaluated);
+            cronExpression.setTimeZone(TimeZone.getTimeZone("GMT"));
             flowFile = session.putAttribute(flowFile, "start.epoch", startEpoch)
             flowFile = session.putAttribute(flowFile, "end.epoch", endEpoch)
             flowFile = session.putAttribute(flowFile, "cron.expression", cronExpressionEvaluated)
