@@ -28,7 +28,15 @@ class GenerateCronTriggers implements Processor {
     .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
     .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
     .build()
-            
+    public static final PropertyDescriptor CRONEXPRESSIONTIMEZONE = new PropertyDescriptor.Builder()
+    .displayName("Cron Expression Time Zone")
+    .name("cron-expression-time-zone")
+    .description("The time zone against which the cron expression will be evaluated.")
+    .required(true)
+    .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+    .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
+    .build()
+    
     def REL_ORIGINAL = new Relationship.Builder().name("original").description('FlowFiles that were successfully processed are routed here').build()
     def REL_TRIGGER = new Relationship.Builder().name("trigger").description('Flowfiles containing triggers between the specified epochs are routed here').build()
     def REL_FAILURE = new Relationship.Builder().name("failure").description('FlowFiles are routed here if an error occurs during processing').build()
@@ -59,12 +67,14 @@ class GenerateCronTriggers implements Processor {
             long endEpochLong = Long.valueOf(endEpoch);
             long nowLong = Long.valueOf(now);
             def cronExpressionEvaluated = context.getProperty(CRONEXPRESSION).evaluateAttributeExpressions(flowFile).getValue()
+            def cronExpressionTimeZoneEvaluated = context.getProperty(CRONEXPRESSIONTIMEZONE).evaluateAttributeExpressions(flowFile).getValue()
             final CronExpression cronExpression;
             cronExpression = new CronExpression(cronExpressionEvaluated);
-            cronExpression.setTimeZone(TimeZone.getTimeZone("GMT"));
+            cronExpression.setTimeZone(TimeZone.getTimeZone(cronExpressionTimeZoneEvaluated));
             flowFile = session.putAttribute(flowFile, "start.epoch", startEpoch)
             flowFile = session.putAttribute(flowFile, "end.epoch", endEpoch)
             flowFile = session.putAttribute(flowFile, "cron.expression", cronExpressionEvaluated)
+            flowFile = session.putAttribute(flowFile, "cron.expression.time.zone", cronExpressionTimeZoneEvaluated)
             Date next = cronExpression.getNextValidTimeAfter(new Date(startEpochLong))
             while(next.getTime() < endEpochLong) {
                 FlowFile cloneFlowFile = session.clone(flowFile)
@@ -97,6 +107,7 @@ class GenerateCronTriggers implements Processor {
         descriptors.add(STARTEPOCH);
         descriptors.add(ENDEPOCH);
         descriptors.add(CRONEXPRESSION);
+        descriptors.add(CRONEXPRESSIONTIMEZONE);
         return descriptors;
     }
     
