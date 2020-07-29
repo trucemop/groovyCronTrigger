@@ -23,7 +23,7 @@ class GenerateCronTriggers implements Processor {
     public static final PropertyDescriptor CRONEXPRESSION = new PropertyDescriptor.Builder()
     .displayName("Cron Expression")
     .name("cron-expression")
-    .description("The cron expression to be used in generating events that would have triggered between Start Epoch and End Epoch")
+    .description("A newline separated list of cron expressions to be used in generating events that would have triggered between Start Epoch and End Epoch")
     .required(true)
     .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
     .expressionLanguageSupported(ExpressionLanguageScope.FLOWFILE_ATTRIBUTES)
@@ -68,19 +68,22 @@ class GenerateCronTriggers implements Processor {
             long nowLong = Long.valueOf(now);
             def cronExpressionEvaluated = context.getProperty(CRONEXPRESSION).evaluateAttributeExpressions(flowFile).getValue()
             def cronExpressionTimeZoneEvaluated = context.getProperty(CRONEXPRESSIONTIMEZONE).evaluateAttributeExpressions(flowFile).getValue()
-            final CronExpression cronExpression;
-            cronExpression = new CronExpression(cronExpressionEvaluated);
-            cronExpression.setTimeZone(TimeZone.getTimeZone(cronExpressionTimeZoneEvaluated));
-            flowFile = session.putAttribute(flowFile, "start.epoch", startEpoch)
-            flowFile = session.putAttribute(flowFile, "end.epoch", endEpoch)
-            flowFile = session.putAttribute(flowFile, "cron.expression", cronExpressionEvaluated)
-            flowFile = session.putAttribute(flowFile, "cron.expression.time.zone", cronExpressionTimeZoneEvaluated)
-            Date next = cronExpression.getNextValidTimeAfter(new Date(startEpochLong))
-            while(next.getTime() < endEpochLong) {
-                FlowFile cloneFlowFile = session.clone(flowFile)
-                cloneFlowFile = session.putAttribute(cloneFlowFile, "execute.epoch", (String)next.getTime())
-                session.transfer(cloneFlowFile, REL_TRIGGER)
-                next = cronExpression.getNextValidTimeAfter(next)
+            
+            for(String cronSplit : cronExpressionEvaluated.split("\\r?\\n")) {
+                CronExpression cronExpression;
+                cronExpression = new CronExpression(cronSplit);
+                cronExpression.setTimeZone(TimeZone.getTimeZone(cronExpressionTimeZoneEvaluated));
+                flowFile = session.putAttribute(flowFile, "start.epoch", startEpoch)
+                flowFile = session.putAttribute(flowFile, "end.epoch", endEpoch)
+                flowFile = session.putAttribute(flowFile, "cron.expression", cronSplit)
+                flowFile = session.putAttribute(flowFile, "cron.expression.time.zone", cronExpressionTimeZoneEvaluated)
+                Date next = cronExpression.getNextValidTimeAfter(new Date(startEpochLong))
+                while(next.getTime() < endEpochLong) {
+                    FlowFile cloneFlowFile = session.clone(flowFile)
+                    cloneFlowFile = session.putAttribute(cloneFlowFile, "execute.epoch", (String)next.getTime())
+                    session.transfer(cloneFlowFile, REL_TRIGGER)
+                    next = cronExpression.getNextValidTimeAfter(next)
+                }
             }
             session.transfer(flowFile, REL_ORIGINAL)
             session.commit()
